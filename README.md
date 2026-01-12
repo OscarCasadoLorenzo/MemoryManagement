@@ -142,3 +142,20 @@ The simulator enables observation of:
 - Fragmentation patterns under each algorithm
 - Allocation failures due to insufficient contiguous memory
 - Memory utilization trends over time
+
+### Stress Test & Algorithm Comparison
+
+To highlight the differences between Best Fit and First Fit, a demanding input file with 65 processes, varied memory requirements (50–800 units), and longer execution times was used. The simulation was run on a MacBook Air M2 with 8GB RAM.
+
+**Key findings:**
+
+- Under high memory pressure and a large number of processes, Best Fit outperformed First Fit in several metrics:
+  - **Faster completion time** (finished in fewer time units)
+  - **Higher average memory utilization**
+  - **Lower average and peak fragmentation**
+  - **Better throughput (more processes completed per time unit)**
+  - **Lower average waiting time in the queue**
+- These differences were not apparent with small or low-utilization workloads, but became significant under stress-test conditions.
+
+**Conclusion:**  
+The choice of allocation algorithm has a major impact on system performance and fragmentation when memory is heavily utilized and the workload is complex. Best Fit generally provides better memory efficiency and throughput in such scenarios, while First Fit may suffice for lighter workloads.
