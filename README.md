@@ -51,7 +51,7 @@ The simulator demonstrates how allocation strategy affects fragmentation, alloca
 
 ## Project Architecture
 
-- **prac3.cpp**: Main simulation logic, memory management, process handling, and I/O
+- **main.cpp**: Main simulation logic, memory management, process handling, and I/O
 - **Input/Output Handler**: Reads process definitions from file, writes memory state to output
 - **Memory Manager**: Allocates, deallocates, and merges memory partitions (holes)
 - **Simulation Driver**: Advances time, manages process arrivals and completions
@@ -87,7 +87,7 @@ The simulator demonstrates how allocation strategy affects fragmentation, alloca
 ### Build
 
 ```sh
-g++ prac3.cpp -o memory_management
+g++ main.cpp -o memory_management
 ```
 
 ### Run
