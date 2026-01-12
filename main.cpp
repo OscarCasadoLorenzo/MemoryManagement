@@ -23,6 +23,165 @@ struct CPU{
     unsigned int totalMemory;
 };
 
+struct Metrics{
+    int totalProcesses;
+    int successfulAllocations;
+    int allocationFailures;
+    int totalSimulationTime;
+    int totalMemoryTimeUsed; // Sum of memory usage over time for average calculation
+    int peakMemoryUsage;
+    int totalWaitingTime;
+    int processesCompleted;
+    int minQueueLength;
+    int maxQueueLength;
+    vector<int> memoryUtilizationOverTime;
+    vector<int> holeCountOverTime;
+    vector<int> holeSizesAtEnd;
+    vector<int> fragmentationOverTime; // Total size of holes at each time step
+};
+
+void initializeMetrics(Metrics &metrics) {
+    metrics.totalProcesses = 0;
+    metrics.successfulAllocations = 0;
+    metrics.allocationFailures = 0;
+    metrics.totalSimulationTime = 0;
+    metrics.totalMemoryTimeUsed = 0;
+    metrics.peakMemoryUsage = 0;
+    metrics.totalWaitingTime = 0;
+    metrics.processesCompleted = 0;
+    metrics.minQueueLength = 999999; // Initialize to a large number
+    metrics.maxQueueLength = 0;
+    metrics.memoryUtilizationOverTime.clear();
+    metrics.holeCountOverTime.clear();
+    metrics.holeSizesAtEnd.clear();
+    metrics.fragmentationOverTime.clear();
+}
+
+void updateMetrics(Metrics &metrics, const CPU &processor, int currentTime, int totalMemory) {
+    // Calculate current memory usage
+    int currentMemoryUsage = 0;
+    int holeCount = 0;
+    int totalFragmentation = 0;
+    
+    for(int i = 0; i < (int)processor.runningProcesses.size(); i++) {
+        if(processor.runningProcesses[i].name.compare("hole") != 0) {
+            currentMemoryUsage += processor.runningProcesses[i].memoryRequirement;
+        } else {
+            holeCount++;
+            totalFragmentation += processor.runningProcesses[i].memoryRequirement;
+        }
+    }
+    
+    // Update peak memory usage
+    if(currentMemoryUsage > metrics.peakMemoryUsage) {
+        metrics.peakMemoryUsage = currentMemoryUsage;
+    }
+    
+    // Track queue length
+    int currentQueueLength = processor.queue.size();
+    if(currentQueueLength < metrics.minQueueLength) {
+        metrics.minQueueLength = currentQueueLength;
+    }
+    if(currentQueueLength > metrics.maxQueueLength) {
+        metrics.maxQueueLength = currentQueueLength;
+    }
+    
+    // Store utilization and hole count for this time step
+    metrics.memoryUtilizationOverTime.push_back(currentMemoryUsage);
+    metrics.holeCountOverTime.push_back(holeCount);
+    metrics.fragmentationOverTime.push_back(totalFragmentation);
+    metrics.totalMemoryTimeUsed += currentMemoryUsage;
+    
+    // Calculate waiting time for processes in queue
+    for(int i = 0; i < (int)processor.queue.size(); i++) {
+        metrics.totalWaitingTime += (currentTime - processor.queue[i].arrivalTime);
+    }
+}
+
+void finalizeMetrics(Metrics &metrics, const CPU &processor, int totalMemory) {
+    // Collect final hole sizes
+    for(int i = 0; i < (int)processor.runningProcesses.size(); i++) {
+        if(processor.runningProcesses[i].name.compare("hole") == 0) {
+            metrics.holeSizesAtEnd.push_back(processor.runningProcesses[i].memoryRequirement);
+        }
+    }
+}
+
+void printMetrics(const Metrics &metrics, int totalMemory, const string &algorithmName) {
+    cout << "\n========== " << algorithmName << " ALGORITHM METRICS ==========" << endl;
+    cout << "Total Processes: " << metrics.totalProcesses << endl;
+    cout << "Successful Allocations: " << metrics.successfulAllocations << endl;
+    cout << "Allocation Failures: " << metrics.allocationFailures << endl;
+    
+    if(metrics.totalProcesses > 0) {
+        double successRate = (double)metrics.successfulAllocations / metrics.totalProcesses * 100;
+        cout << "Allocation Success Rate: " << successRate << "%" << endl;
+    }
+    
+    cout << "Processes Completed: " << metrics.processesCompleted << endl;
+    cout << "Total Simulation Time: " << metrics.totalSimulationTime << endl;
+    
+    if(metrics.totalSimulationTime > 0) {
+        double avgUtilization = (double)metrics.totalMemoryTimeUsed / (metrics.totalSimulationTime * totalMemory) * 100;
+        cout << "Average Memory Utilization: " << avgUtilization << "%" << endl;
+        
+        double throughput = (double)metrics.processesCompleted / metrics.totalSimulationTime;
+        cout << "Throughput (processes/time unit): " << throughput << endl;
+    }
+    
+    cout << "Peak Memory Usage: " << metrics.peakMemoryUsage << "/" << totalMemory 
+         << " (" << (double)metrics.peakMemoryUsage / totalMemory * 100 << "%)" << endl;
+    
+    if(metrics.successfulAllocations > 0) {
+        double avgWaitingTime = (double)metrics.totalWaitingTime / metrics.successfulAllocations;
+        cout << "Average Waiting Time: " << avgWaitingTime << " time units" << endl;
+    }
+    
+    // Display queue length metrics
+    cout << "Minimum Queue Length: " << metrics.minQueueLength << endl;
+    cout << "Maximum Queue Length: " << metrics.maxQueueLength << endl;
+    
+    // Calculate and display average fragmentation over time
+    if(!metrics.fragmentationOverTime.empty()) {
+        int totalFragmentation = 0;
+        int maxFragmentation = 0;
+        for(int i = 0; i < (int)metrics.fragmentationOverTime.size(); i++) {
+            totalFragmentation += metrics.fragmentationOverTime[i];
+            if(metrics.fragmentationOverTime[i] > maxFragmentation) {
+                maxFragmentation = metrics.fragmentationOverTime[i];
+            }
+        }
+        double avgFragmentation = (double)totalFragmentation / metrics.fragmentationOverTime.size();
+        cout << "Average Fragmentation (over time): " << avgFragmentation << " (" 
+             << (avgFragmentation / totalMemory * 100) << "% of total memory)" << endl;
+        cout << "Peak Fragmentation: " << maxFragmentation << " (" 
+             << ((double)maxFragmentation / totalMemory * 100) << "% of total memory)" << endl;
+    }
+    
+    cout << "Final Number of Memory Holes: " << metrics.holeSizesAtEnd.size() << endl;
+    
+    if(!metrics.holeSizesAtEnd.empty()) {
+        int totalHoleSize = 0;
+        int minHole = metrics.holeSizesAtEnd[0];
+        int maxHole = metrics.holeSizesAtEnd[0];
+        
+        for(int i = 0; i < (int)metrics.holeSizesAtEnd.size(); i++) {
+            totalHoleSize += metrics.holeSizesAtEnd[i];
+            if(metrics.holeSizesAtEnd[i] < minHole) minHole = metrics.holeSizesAtEnd[i];
+            if(metrics.holeSizesAtEnd[i] > maxHole) maxHole = metrics.holeSizesAtEnd[i];
+        }
+        
+        double avgHoleSize = (double)totalHoleSize / metrics.holeSizesAtEnd.size();
+        cout << "Average Hole Size: " << avgHoleSize << endl;
+        cout << "Smallest Hole: " << minHole << endl;
+        cout << "Largest Hole: " << maxHole << endl;
+        cout << "Total Fragmented Memory: " << totalHoleSize << "/" << totalMemory 
+             << " (" << (double)totalHoleSize / totalMemory * 100 << "%)" << endl;
+    }
+    
+    cout << "=========================================================\n" << endl;
+}
+
 void loadProcessesFromFile(string importFileName, vector<Process> &processes){
     ifstream inputFile;
     
@@ -79,7 +238,7 @@ void insertMemoryHoleAfterIndex(CPU &processor, int holeIndex, int remainingMemo
 }
 
 
-void decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(vector<Process> &runningProcesses){
+void decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(vector<Process> &runningProcesses, Metrics &metrics){
     
     //Recorremos el vector de processes que se estan ejecutando A LA INVERSA
     for(int k = runningProcesses.size() - 1; k >= 0 ; k--){
@@ -89,9 +248,10 @@ void decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(vector<Process> &runn
         runningProcesses[k].remainingTimeUnits--;
         
         //If a process finishes
-        if(runningProcesses[k].remainingTimeUnits == 0){    	
+        if(runningProcesses[k].remainingTimeUnits == 0 && runningProcesses[k].name.compare("hole") != 0){		
             //it becomes a hole
-            runningProcesses[k].name = "hole"; 
+            runningProcesses[k].name = "hole";
+            metrics.processesCompleted++;
         }   
     }
 }
@@ -135,7 +295,7 @@ void mergeAdjacentMemoryHoles(vector<Process> &runningProcesses){
     }             
 }
 
-void moveProcessFromQueueToCPU(CPU &processor, bool &wasProcessMoved){
+void moveProcessFromQueueToCPU(CPU &processor, bool &wasProcessMoved, Metrics &metrics){
     int memoryHoleIndex = -1;
     
     // Check if there's a suitable memory hole for the first process in the queue
@@ -165,6 +325,8 @@ void moveProcessFromQueueToCPU(CPU &processor, bool &wasProcessMoved){
             //Remove the process from the queue
             processor.queue.erase(processor.queue.begin());	
             wasProcessMoved = true;
+            metrics.successfulAllocations++;
+            metrics.allocationFailures--; // Compensate for initial failure count
         }
     }
     
@@ -172,7 +334,7 @@ void moveProcessFromQueueToCPU(CPU &processor, bool &wasProcessMoved){
     wasProcessMoved = false;
 }
 
-void allocateProcessToCPU(vector<Process> &processes, CPU &processor){
+void allocateProcessToCPU(vector<Process> &processes, CPU &processor, Metrics &metrics){
     
     int memoryHoleIndex = -1;
     
@@ -199,12 +361,15 @@ void allocateProcessToCPU(vector<Process> &processes, CPU &processor){
                 //Merge adjacent holes if any consecutive holes exist
                 mergeAdjacentMemoryHoles(processor.runningProcesses);
             }	
+            metrics.successfulAllocations++;
+            break;
         }
     }
     
     if(memoryHoleIndex == -1){
         //If it doesn't fit in any hole, add to queue
-        processor.queue.push_back(processes[0]);        
+        processor.queue.push_back(processes[0]);
+        metrics.allocationFailures++;
     }
     
     processes.erase(processes.begin()); 
@@ -217,6 +382,11 @@ void allocateProcessesUsingFirstFit(int totalMemory, string importFileName, stri
     
     sortProcessesByArrivalTime(processes);
     
+    // Initialize metrics
+    Metrics metrics;
+    initializeMetrics(metrics);
+    metrics.totalProcesses = processes.size();
+    
     //Initialize a processor responsible for executing the processes
     CPU processor;
     processor.totalMemory = (unsigned int) totalMemory;
@@ -244,8 +414,7 @@ void allocateProcessesUsingFirstFit(int totalMemory, string importFileName, stri
         //Controls the time instants
         for(int currentTime = 1; shouldContinueExecution == true || !processes.empty(); currentTime++){
             
-            //Time instant printed to terminal and file
-            cout << currentTime << " ";
+            //Time instant printed to file only
             file_exported << currentTime << " ";
             
             bool wasProcessRemoved;
@@ -261,7 +430,7 @@ void allocateProcessesUsingFirstFit(int totalMemory, string importFileName, stri
                 
                 //If it could potentially fit...
                 else if (!processor.queue.empty()){
-                    moveProcessFromQueueToCPU(processor, wasProcessRemoved);
+                    moveProcessFromQueueToCPU(processor, wasProcessRemoved, metrics);
                 }
                 
             }while(wasProcessRemoved == true);
@@ -269,18 +438,14 @@ void allocateProcessesUsingFirstFit(int totalMemory, string importFileName, stri
             
             //Relocate the original processes
             while(!processes.empty() && (int)processes[0].arrivalTime == currentTime){		
-                allocateProcessToCPU(processes, processor);
+                allocateProcessToCPU(processes, processor, metrics);
             }		
             
             //We need to take into account the memory positions occupied by previous processes
             int startPosition = 0;
             
-            //Print running processes at this time instant in the processor both to terminal and file
+            //Print running processes at this time instant to file only
             for(int i = 0; i < (int)processor.runningProcesses.size(); i++){
-                
-                cout << "[" << startPosition << " " 
-                << processor.runningProcesses[i].name << " " 
-                << processor.runningProcesses[i].memoryRequirement << "] ";
                 
                 file_exported << "[" << startPosition << " " 
                 << processor.runningProcesses[i].name << " " 
@@ -289,19 +454,27 @@ void allocateProcessesUsingFirstFit(int totalMemory, string importFileName, stri
                 startPosition += processor.runningProcesses[i].memoryRequirement;
             }  
             
-            cout << endl;
             file_exported << endl;
+            
+            // Update metrics for this time step
+            updateMetrics(metrics, processor, currentTime, totalMemory);
             
             shouldContinueExecution = shouldContinueSimulation(processor.queue, processor.runningProcesses, totalMemory);
             
-            decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(processor.runningProcesses);
+            decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(processor.runningProcesses, metrics);
             mergeAdjacentMemoryHoles(processor.runningProcesses);
+            
+            metrics.totalSimulationTime = currentTime;
         }
         
         file_exported.close();
     }
     else
     cout << "The output file could not be created" << endl;
+    
+    // Finalize and print metrics
+    finalizeMetrics(metrics, processor, totalMemory);
+    printMetrics(metrics, totalMemory, "FIRST FIT");
     
     cout << "Algorithm finished" << endl;
 }
@@ -313,6 +486,11 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
     
     sortProcessesByArrivalTime(processes);
     
+    // Initialize metrics
+    Metrics metrics;
+    initializeMetrics(metrics);
+    metrics.totalProcesses = processes.size();
+    
     //Initialize a processor responsible for executing the processes
     CPU processor;
     processor.totalMemory = (unsigned int) totalMemory;
@@ -340,8 +518,7 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
         //Controls the time instants
         for(int currentTime = 1; shouldContinueExecution == true || !processes.empty(); currentTime++){
             
-            //Time instant printed to terminal and file
-            cout << currentTime << " ";
+            //Time instant printed to file only
             file_exported << currentTime << " ";
             
             bool wasProcessRemoved;
@@ -357,7 +534,7 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
                 
                 //If it could potentially fit...
                 else if (!processor.queue.empty()){
-                    moveProcessFromQueueToCPU(processor, wasProcessRemoved);
+                    moveProcessFromQueueToCPU(processor, wasProcessRemoved, metrics);
             }
             
         }while(wasProcessRemoved == true);
@@ -383,7 +560,8 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
             //If it doesn't fit in any hole
             if(bestHoleIndex == -1){
                 //If it doesn't fit in any hole, add to queue
-                processor.queue.push_back(processes[0]);        
+                processor.queue.push_back(processes[0]);
+                metrics.allocationFailures++;
             }
             else{
                 //If it fits exactly, simply swap the values
@@ -399,7 +577,8 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
                     swap(processor.runningProcesses[bestHoleIndex], processes[0]);
                     //TODO hole checker: if there are several consecutive holes we should merge them 
                     mergeAdjacentMemoryHoles(processor.runningProcesses);
-                }	
+                }
+                metrics.successfulAllocations++;
             }
             
             processes.erase(processes.begin()); 			    	
@@ -408,12 +587,8 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
         //We need to take into account the memory positions occupied by previous processes
         int startPosition = 0;
         
-        //Print running processes at this time instant in the processor both to terminal and file
+        //Print running processes at this time instant to file only
         for(int i = 0; i < (int)processor.runningProcesses.size(); i++){
-            
-            cout << "[" << startPosition << " " 
-            << processor.runningProcesses[i].name << " " 
-            << processor.runningProcesses[i].memoryRequirement << "] ";
             
             file_exported << "[" << startPosition << " " 
             << processor.runningProcesses[i].name << " " 
@@ -421,12 +596,16 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
             
             startPosition += processor.runningProcesses[i].memoryRequirement;
         }       
-        cout << endl;
         file_exported << endl;
         
+        // Update metrics for this time step
+        updateMetrics(metrics, processor, currentTime, totalMemory);
+        
         shouldContinueExecution = shouldContinueSimulation(processor.queue, processor.runningProcesses, totalMemory);
-        decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(processor.runningProcesses);
+        decreaseProcessesTimeUnitsAndConvertFinishedIntoHoles(processor.runningProcesses, metrics);
         mergeAdjacentMemoryHoles(processor.runningProcesses);
+        
+        metrics.totalSimulationTime = currentTime;
         
     }
     
@@ -435,6 +614,9 @@ void allocateProcessesUsingBestFit(int totalMemory, string importFileName, strin
     else
         cout << "The output file could not be created" << endl;
     
+    // Finalize and print metrics
+    finalizeMetrics(metrics, processor, totalMemory);
+    printMetrics(metrics, totalMemory, "BEST FIT");
     
     cout << "Algorithm finished" << endl;
 

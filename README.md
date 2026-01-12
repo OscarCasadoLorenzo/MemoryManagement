@@ -69,11 +69,29 @@ The simulator demonstrates how allocation strategy affects fragmentation, alloca
 
 ### Outputs
 
-- **input-example.txt**: Logs memory state at each event:
+- **Output file** (e.g., output-first-2000.txt): Logs memory state at each time step:
   `Time [StartAddr1 State1 Size1] [StartAddr2 State2 Size2] ...`
   Example:
   `1 [0 P1 300] [300 P2 200] [500 hole 1500]`
 - **Console output**: Status messages, errors, and completion notice
+
+- **Algorithm Metrics**: Comprehensive statistics displayed after simulation completion:
+  - **Total Processes**: Number of processes in the input file
+  - **Successful Allocations**: Processes successfully allocated memory
+  - **Allocation Failures**: Processes that could not be allocated
+  - **Allocation Success Rate**: Percentage of successful allocations
+  - **Processes Completed**: Number of processes that finished execution
+  - **Total Simulation Time**: Total time units the simulation ran
+  - **Average Memory Utilization**: Average percentage of memory used during execution
+  - **Throughput**: Processes completed per time unit
+  - **Peak Memory Usage**: Maximum memory used at any point (absolute and percentage)
+  - **Average Waiting Time**: Average time processes spent waiting in queue
+  - **Minimum/Maximum Queue Length**: Queue congestion metrics showing system responsiveness
+  - **Average Fragmentation**: Average amount of fragmented memory (in holes) over time
+  - **Peak Fragmentation**: Maximum fragmentation reached during simulation
+  - **Final Number of Memory Holes**: Holes remaining after simulation
+  - **Average/Smallest/Largest Hole Size**: Distribution of final memory holes
+  - **Total Fragmented Memory**: Total memory in holes at simulation end
 
 ---
 
@@ -124,21 +142,3 @@ The simulator enables observation of:
 - Fragmentation patterns under each algorithm
 - Allocation failures due to insufficient contiguous memory
 - Memory utilization trends over time
-
----
-
-## Limitations & Future Improvements
-
-- Does not implement page replacement or virtual memory (pure contiguous allocation)
-- No graphical visualization (text output only)
-- Could be extended with:
-  - Additional allocation strategies (Worst Fit, Next Fit)
-  - Visualization tools
-  - Support for paging and page replacement algorithms
-  - Performance metrics (allocation time, fragmentation ratio)
-
----
-
-## License
-
-MIT License
