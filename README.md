@@ -1,5 +1,14 @@
 # Virtual Memory Management Simulator
 
+<p align="center">
+  <a href="https://github.com/OscarCasadoLorenzo/MemoryManagement/blob/main/LICENSE">
+    <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+  </a>
+  <a href="https://github.com/OscarCasadoLorenzo/MemoryManagement/actions">
+    <img alt="GitHub Actions Status" src="https://github.com/OscarCasadoLorenzo/MemoryManagement/actions/workflows/ci.yml/badge.svg" />
+  </a>
+</p>
+
 ## Best Fit & First Fit Partition Allocation in C++
 
 **A C++ simulation exploring the behavior and efficiency of dynamic memory allocation strategies —Best Fit and First Fit— in a contiguous memory management system.**
