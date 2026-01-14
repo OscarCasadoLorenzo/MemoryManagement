@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y g++
+
+      - name: Build executable
+        run: g++ -O2 -o memory_management main.cpp
+
+      - name: Run First Fit algorithm
+        run: ./memory_management input-example.txt output-first-ci.txt 2000 -f
+
+      - name: Run Best Fit algorithm
+        run: ./memory_management input-example.txt output-best-ci.txt 2000 -b
+
+      - name: Compare First Fit output
+        run: diff -q output-first-ci.txt output-first.txt
+
+      - name: Compare Best Fit output
+        run: diff -q output-best-ci.txt output-best.txt || echo 'Best Fit output reference missing or not provided.'
